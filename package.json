@@ -1,0 +1,25 @@
+{
+  "name": "quitelive-api",
+  "version": "0.0.1",
+  "description": "",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "ws": "^7.1.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/1fabunicorn/QuiteLive-API.git"
+  },
+  "author": "Nova Trauben",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/1fabunicorn/QuiteLive-API/issues"
+  },
+  "homepage": "https://github.com/1fabunicorn/QuiteLive-API#readme"
+}
