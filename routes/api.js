@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const Video = require("../src/Video");
 
+
 require("../models/Auths");
 const AuthSchema = mongoose.model("AuthSchema");
 
@@ -22,6 +23,8 @@ router.get("/get_init_key", (req, res) => {
   });
 });
 
-router.post("/video_feed", (req, res) => {});
+router.post("/video_feed", (req, res) => {
+
+});
 
 module.exports = router;
