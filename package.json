@@ -4,25 +4,29 @@
   "description": "API for Quite Live Backend",
   "main": "app.js",
   "dependencies": {
+    "@dashevo/dashcore-lib": "^0.17.9",
     "express": "^4.17.1",
     "mongoose": "^5.7.0",
-    "websocket": "^1.0.30",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4",
     "ws": "^7.1.2"
   },
   "devDependencies": {
     "dotenv": "^8.1.0",
-    "prettier": "^1.18.2"
+    "jsdoc-to-markdown": "^5.0.1"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "docs": "jsdoc2md routes/api.js > docs/routes-api.md && jsdoc2md src/Wallet.js > docs/wallet-api.md",
+    "testDocs": "jsdoc src/Wallet.js && rm -rf out"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/1fabunicorn/QuiteLive-API.git"
   },
   "author": "Nova Trauben",
-  "license": "ISC",
+  "license": " AGPL-3.0",
   "bugs": {
     "url": "https://github.com/1fabunicorn/QuiteLive-API/issues"
   },

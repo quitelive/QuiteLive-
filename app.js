@@ -1,9 +1,30 @@
+/*
+ * Nova Trauben (C) 2019
+ *
+ * This file is part of QuiteLive.
+ * https://www.github.com/1fabunicorn/QuiteLive-API
+ *
+ * QuiteLive is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * QuiteLive is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 if (process.env.NODE_ENV !== "production") require("dotenv").config();
 const Mongoose = require("mongoose");
 const Express = require("express");
 const WebSocket = require("ws");
 const api = require("./routes/api");
 const app = Express();
+const ConnectedClients = require("./src/Videos");
 
 // Connect to MongoDB Server
 const db = require("./src/mongodb");
@@ -28,20 +49,17 @@ app.use("/api", api);
 
 // Streams
 
-const wss = new WebSocket.Server({ port: 8080 });
-
+const wss = new WebSocket.Server({ port: 5001 });
+const clients = new ConnectedClients.Video();
 wss.on("connection", (ws, req) => {
-  console.log("User connected");
-  console.log(req.connection.remoteAddress);
-  ws.on("message", message => {
-    console.log(`Received message => ${message}`);
-  });
-    // console.log(wss.clients);
-  ws.on("close", () => {
-    console.log("disconnected")
+  console.log("Connected");
+  // add new connected client
+
+  // listen for messages from the streamer, the clients will not send anything so we don't need to filter
+  ws.on("message", data => {
+    // send the base64 encoded frame to each connected ws
   });
 });
-
 app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");
 });
