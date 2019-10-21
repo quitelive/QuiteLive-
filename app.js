@@ -19,12 +19,13 @@
  */
 
 if (process.env.NODE_ENV !== "production") require("dotenv").config();
+const util = require('util');
 const Mongoose = require("mongoose");
 const Express = require("express");
 const WebSocket = require("ws");
 const api = require("./routes/api");
 const app = Express();
-const ConnectedClients = require("./src/Videos");
+const Clients = require("./src/Clients");
 
 // Connect to MongoDB Server
 const db = require("./src/mongodb");
@@ -32,17 +33,19 @@ const db = require("./src/mongodb");
 // Add the public directory
 app.use(Express.static("public"));
 
-// Connect to mongo database
-Mongoose.connect(db.mongoURI, {
-  useNewUrlParser: true
-})
-  .then(() => {
-    console.log(`MongoDB Connected -> ${db.mongoURI}`);
-  })
-  .catch(err => {
-    console.error(`Failed to connect to MongoDB Server -> ${db.mongoURI}`);
-    console.error(`Cause: ${err}`);
-  });
+// // Connect to mongo database
+// Mongoose.connect(db.mongoURI, {
+//   useNewUrlParser: true,
+//   useCreateIndex: true,
+//   useUnifiedTopology: true
+// })
+//   .then(() => {
+//     console.log(`MongoDB Connected -> ${db.mongoURI}`);
+//   })
+//   .catch(err => {
+//     console.error(`Failed to connect to MongoDB Server -> ${db.mongoURI}`);
+//     console.error(`Cause: ${err}`);
+//   });
 
 // Add API routes
 app.use("/api", api);
@@ -50,16 +53,25 @@ app.use("/api", api);
 // Streams
 
 const wss = new WebSocket.Server({ port: 5001 });
-const clients = new ConnectedClients.Video();
-wss.on("connection", (ws, req) => {
-  console.log("Connected");
-  // add new connected client
+const clients = new Clients();
 
-  // listen for messages from the streamer, the clients will not send anything so we don't need to filter
+wss.on("connection", (ws, req) => {
+  // identify clients with
+  console.log("new client");
+  clients.addClient(req.headers["sec-websocket-key"], ws, req.url);
+
   ws.on("message", data => {
-    // send the base64 encoded frame to each connected ws
+    clients.addFrames(data, req.headers["sec-websocket-key"]);
+    console.log(util.inspect(clients.clientVideoFrames, {showHidden: false, depth: null}));
   });
 });
+
+// sendMessage = () => {
+//   connected.forEach(client => {
+//     client.send("hello new client");
+//   });
+// };
+
 app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");
 });
