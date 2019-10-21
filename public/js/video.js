@@ -98,7 +98,7 @@ let videostack = new VideoStack();
 //const WS_URL = `ws://localhost:5001/?date=${newClient()}`;
 //const ngrokURl = "0a3bff65.ngrok.io";
 const herokuAddress = "quite-live.herokuapp.com";
-const host = location.origin.replace(/^http/, 'ws')
+const host = location.origin.replace(/^https/, 'ws');
 const WS_URL = `${host}/?date=${newClient()}`;
 const ws = new WebSocket(WS_URL);
 
