@@ -19,7 +19,7 @@
  */
 
 if (process.env.NODE_ENV !== "production") require("dotenv").config();
-const util = require('util');
+const util = require("util");
 const Mongoose = require("mongoose");
 const Express = require("express");
 const WebSocket = require("ws");
@@ -62,7 +62,12 @@ wss.on("connection", (ws, req) => {
 
   ws.on("message", data => {
     clients.addFrames(data, req.headers["sec-websocket-key"]);
-    console.log(util.inspect(clients.clientVideoFrames, {showHidden: false, depth: null}));
+    process.stdout.write(
+      util.inspect(clients.clientVideoFrames, { showHidden: false, depth: null })
+    );
+    console.log(
+      util.inspect(clients.clientVideoFrames, { showHidden: false, depth: null })
+    );
   });
 });
 
