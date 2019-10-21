@@ -76,8 +76,7 @@ app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");
 });
 
-const PORT = 5000;
-
+const port = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`server running on port ${PORT}`);
   console.log(`Exit app with SIGTERM (^C)`);
