@@ -41,28 +41,28 @@ let getId = (size = 36) => {
 };
 
 // get video dom element
-// const video = document.querySelector("video");
+const video = document.querySelector("video");
+const promiceVideo = document.querySelector("video").play();
 //
 // // request access to webcam
 //
 //
 let gotVideo = false;
-// if (video !== undefined) {
-//   video.then(_ => {
-//     // Autoplay started!
-//     let gotVideo = false;
-//     navigator.mediaDevices
-//         .getUserMedia({
-//           video: { width: 426, height: 240 } // change for user audio
-//         })
-//         .then(stream => {
-//           video.srcObject = stream;
-//           gotVideo = true;
-//         });
-//   }).catch(error => {
-//     console.log("error ahhhhh", error)
-//   });
-// }
+if (promiceVideo !== undefined) {
+  promiceVideo.then(_ => {
+    // Autoplay started!
+    navigator.mediaDevices
+        .getUserMedia({
+          video: { width: 800, height: 600 } // change for user audio
+        })
+        .then(stream => {
+          video.srcObject = stream;
+          gotVideo = true;
+        });
+  }).catch(error => {
+    console.log("error ahhhhh", error)
+  });
+}
 
 // returns a frame encoded in base64
 const getFrame = () => {
@@ -80,38 +80,29 @@ const getFrame = () => {
 
 const sendFrames = () => {
   const amount = 5;
-  for (let i = 0; i < amount; i++) {
-    videostack.push(
-      [...Array(10)].map(i => (~~(Math.random() * 36)).toString(36)).join("")
-    );
-  }
+  // for (let i = 0; i < amount; i++) {
+  //   videostack.push(
+  //     [...Array(10)].map(i => (~~(Math.random() * 36)).toString(36)).join("")
+  //   );
+  // }
 
   if (gotVideo) {
-    ws.send(new Blob(videostack.popAmount(amount)));
+    wss.send(videostack.popAmount(amount));
   }
-  let a = videostack.popAmount(amount);
   console.log("sent");
-  ws.send(a);
 };
 
 let videostack = new VideoStack();
-//const WS_URL = `ws://localhost:5001/?date=${newClient()}`;
-//const ngrokURl = "0a3bff65.ngrok.io";
-const herokuAddress = "quite-live.herokuapp.com";
-const host = location.origin.replace(/^https/, 'ws');
+const host = location.origin.replace(/^http/, 'ws');
 const WS_URL = `${host}/?date=${newClient()}`;
-const ws = new WebSocket(WS_URL);
+const wss = new WebSocket(WS_URL);
 
-ws.onopen = () => {
+wss.onopen = () => {
   console.log(`Connected to ${WS_URL}`);
   setInterval(sendFrames, 5000);
   setInterval(getFrame, 1000);
-  //
-  //
-  //   setInterval(() => {
-  //     ws.send(getFrame());
-  //   }, 1000 / FPS);
+
 };
-ws.onmessage = message => {
+wss.onmessage = message => {
   console.log(message);
 };
