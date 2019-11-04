@@ -18,6 +18,9 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+const fs = require("fs");
+const util = require("util");
+
 class Clients {
   constructor() {
     this.connectedClients = [];
@@ -51,14 +54,17 @@ class Clients {
     });
     return null;
   }
+  getVideoStats() {
+    console.log("connected clients: " + this.connectedClients.length);
+    console.log("how many frames we have: " + this.clientVideoFrames[0].frames.length);
+  }
 
+  // takes in an array of objects (dictionaries)
   addFrames(data, id) {
-    const arrayedData = JSON.parse(data); // data comes in as a string... YUCK!
     let success = false;
-    // convert?
     this.clientVideoFrames.forEach(videoFrames => {
       if (videoFrames.id.localeCompare(id) === 0) {
-        arrayedData.forEach(frame => {
+        data.forEach(frame => {
           videoFrames.frames.push(frame);
           success = true;
         });
@@ -66,6 +72,7 @@ class Clients {
     });
     if (!success) throw "failed to add frames";
   }
+
   //
   //   newConnection(IP) {
   //     const id = this.makeNewId();

@@ -26,6 +26,8 @@ const WebSocket = require("ws");
 const api = require("./routes/api");
 const app = Express();
 const Clients = require("./src/Clients");
+const Decode = require("./src/helpers/decodeBase64");
+const fs = require("fs");
 
 // Connect to MongoDB Server
 const db = require("./src/mongodb");
@@ -33,7 +35,7 @@ const db = require("./src/mongodb");
 // Add the public directory
 app.use(Express.static("public"));
 
-// // Connect to mongo database
+// Connect to mongo database
 // Mongoose.connect(db.mongoURI, {
 //   useNewUrlParser: true,
 //   useCreateIndex: true,
@@ -47,7 +49,6 @@ app.use(Express.static("public"));
 //     console.error(`Cause: ${err}`);
 //   });
 
-
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   console.log(`server running on port ${PORT}`);
@@ -59,8 +60,11 @@ app.use("/api", api);
 
 // Streams
 
-const wss = new WebSocket.Server({server});
+const wss = new WebSocket.Server({ server });
 const clients = new Clients();
+// setInterval(function() {
+//   clients.getVideoStats();
+// }, 1000);
 
 wss.on("connection", (ws, req) => {
   // identify clients with
@@ -68,13 +72,11 @@ wss.on("connection", (ws, req) => {
   clients.addClient(req.headers["sec-websocket-key"], ws, req.url);
 
   ws.on("message", data => {
-    clients.addFrames(data, req.headers["sec-websocket-key"]);
-    process.stdout.write(
-      util.inspect(clients.clientVideoFrames, { showHidden: false, depth: null })
-    );
-    console.log(
-      util.inspect(clients.clientVideoFrames, { showHidden: false, depth: null })
-    );
+    clients.addFrames(new Decode(data).decode64(), req.headers["sec-websocket-key"]);
+    clients.getVideoStats();
+  });
+  ws.on("close", client => {
+    console.log("client left");
   });
 });
 
@@ -88,11 +90,9 @@ app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");
 });
 
-
-
 // Exit on SIGTERM - aka (^c)
 process.on("SIGTERM", () => {
-  port.close(() => {
+  PORT.close(() => {
     console.log("Process terminated");
   });
 });
