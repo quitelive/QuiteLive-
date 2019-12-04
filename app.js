@@ -35,9 +35,6 @@ const app = Express();
 // Connect to MongoDB Server
 const db = require("./src/mongodb");
 
-// Add the public directory
-app.use(Express.static("public"));
-
 // Connect to mongo database
 // Mongoose.connect(db.mongoURI, {
 //   useNewUrlParser: true,
@@ -59,6 +56,9 @@ const server = app.listen(PORT, _ => {
   );
   console.log(chalk.white.bold(`[Quite Live] Exit app with SIGTERM (^C)`));
 });
+
+// Add the public directory
+app.use(Express.static("public"));
 
 // Add API routes
 app.use("/api", api);
