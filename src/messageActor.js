@@ -27,14 +27,11 @@ const chalk = require("chalk");
 
 class messageActor {
   constructor() {
-
     this.messageQueue = new Bull("client messages", process.env.REDIS_URL);
     this.Clients = new clients(true);
   }
 
   dispatchMessages() {
-
-
     this.messageQueue.process(currentMessage => {
       if (this.Clients.verbose) {
         this.logger(5000);
@@ -50,6 +47,7 @@ class messageActor {
         )
           .then(_ => {
             this.Clients.printClients();
+            currentMessage.remove();
           })
           .catch(e => {
             throw e;
@@ -64,6 +62,7 @@ class messageActor {
           // for now, we except every connection
           const clientID = message.key; // right now the field will be straight in data
           this.Clients.acceptClient(clientID);
+          currentMessage.remove();
         }
 
         // frame
@@ -75,6 +74,7 @@ class messageActor {
             .then(m => {
               if (this.Clients.verbose) {
                 console.log(chalk.red(m));
+                currentMessage.remove();
               }
             });
         }
