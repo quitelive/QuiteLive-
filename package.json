@@ -27,7 +27,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon -i test.json app.js ",
     "docs": "jsdoc2md routes/api.js > docs/routes-api.md && jsdoc2md src/Wallet.js > docs/wallet-api.md",
-    "testDocs": "jsdoc src/Wallet.js && rm -rf out"
+    "testDocs": "jsdoc src/Wallet.js && rm -rf out",
+    "Logs": "heroku logs -t -a quite-live\n"
   },
   "repository": {
     "type": "git",

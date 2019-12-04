@@ -105,7 +105,7 @@ app.get("/stream", (req, res) => {
 
 // Exit on SIGTERM - aka (^c)
 process.on("SIGTERM", () => {
-  PORT.close(() => {
+  server.close(() => {
     console.log("Process terminated");
   });
 });

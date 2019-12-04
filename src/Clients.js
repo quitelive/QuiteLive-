@@ -43,7 +43,7 @@ class Clients {
             aClient.id +
             ", Time: " +
             util.inspect(aClient.time) +
-            "\n               " // ugly way of formating
+            "\n               " // ugly way of formatting
         );
     });
     console.log(consoleOutput);
