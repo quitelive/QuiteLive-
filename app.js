@@ -18,16 +18,19 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-if (process.env.NODE_ENV !== "production") require("dotenv").config();
-const util = require("util");
-const Mongoose = require("mongoose");
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+  const fs = require("fs");
+}
+
 const Express = require("express");
 const WebSocket = require("ws");
+const chalk = require("chalk");
+
 const api = require("./routes/api");
+const messageActor = require("./src/messageActor");
+
 const app = Express();
-const Clients = require("./src/Clients");
-const Decode = require("./src/helpers/decodeBase64");
-const fs = require("fs");
 
 // Connect to MongoDB Server
 const db = require("./src/mongodb");
@@ -50,9 +53,11 @@ app.use(Express.static("public"));
 //   });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`server running on port ${PORT}`);
-  console.log(`Exit app with SIGTERM (^C)`);
+const server = app.listen(PORT, _ => {
+  console.log(
+    chalk.white.bold("[Quite Live] Server running on port: " + chalk.red(`${PORT}`))
+  );
+  console.log(chalk.white.bold(`[Quite Live] Exit app with SIGTERM (^C)`));
 });
 
 // Add API routes
@@ -60,31 +65,40 @@ app.use("/api", api);
 
 // Streams
 
-const wss = new WebSocket.Server({ server });
-const clients = new Clients();
-// setInterval(function() {
-//   clients.getVideoStats();
-// }, 1000);
+const wss = new WebSocket.Server({ server }, undefined);
+
+const messages = new messageActor();
 
 wss.on("connection", (ws, req) => {
-  // identify clients with
   console.log("new client");
-  clients.addClient(req.headers["sec-websocket-key"], ws, req.url);
+  messages
+    .addMessage("connect", {
+      wsKey: req.headers["sec-websocket-key"],
+      wsData: ws,
+      clientTime: req.url
+    })
+    .catch(e => {
+      throw e;
+    });
 
   ws.on("message", data => {
-    clients.addFrames(new Decode(data).decode64(), req.headers["sec-websocket-key"]);
-    clients.getVideoStats();
+    messages
+      .addMessage(data, {
+        key: req.headers["sec-websocket-key"]
+      })
+      .catch(e => {
+        throw e;
+      });
   });
+
   ws.on("close", client => {
+    // TODO: Remove client from connectedClients
     console.log("client left");
   });
 });
 
-// sendMessage = () => {
-//   connected.forEach(client => {
-//     client.send("hello new client");
-//   });
-// };
+// backend message dealer
+messages.dispatchMessages();
 
 app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");

@@ -1,6 +1,38 @@
 // Credit to Alexandru Cambose - alexcambose
 // https://github.com/alexcambose/webcam-base64-streaming
 
+// message sender
+const createMessageScemeas = function(request, data) {
+  if (request === "start") {
+    return {
+      type: "video",
+      request: "start"
+    };
+  }
+
+  // data = [hash of frame, id]
+  if (request === "tx") {
+    return {
+      type: "video",
+      request: "tx",
+      data: data[0],
+      id: data[1]
+    };
+  }
+  if (request === "frame") {
+    return {
+      type: "video",
+      request: "frame",
+      data: data
+    };
+  }
+};
+
+const createMessage = (request, data) => {
+  const message = createMessageScemeas(request, data);
+  return JSON.stringify(message);
+};
+
 // Video Stack
 class VideoStack {
   constructor() {
@@ -9,14 +41,13 @@ class VideoStack {
   }
 
   popAll() {
-    let framesToReturn = this.videoStack;
+    const message = createMessageScemeas("frame", this.videoStack);
+    this.clearStack();
+    return JSON.stringify(message);
+  }
+
+  clearStack() {
     this.videoStack = [];
-    // framesToReturn.push({ clientID: this.ID }); // ID for each send of frames
-    // for (let i = 0; i < this.videoStack.length; i++) {
-    //   framesToReturn.push(this.videoStack.pop());
-    // }
-    console.log(framesToReturn.length);
-    return JSON.stringify(framesToReturn);
   }
 
   push(frame, time) {
@@ -56,72 +87,84 @@ let getId = (size = 36) => {
 };
 
 // get video dom element
+
+// request access to webcam
+
+let gotVideo = false;
+let requestedVideo = false; // only ask for video if user asks
+let requestedVideoHappened = false; // set flag so we don't to the bellow over again
+let videoTime;
+
 const video = document.querySelector("video");
 const promiseVideo = document.querySelector("video").play();
 
-// // request access to webcam
-
-let gotVideo = false;
-let videoTime;
-
-if (promiseVideo !== undefined) {
-  promiseVideo
-    .then(_ => {
-      // Autoplay started!
-      navigator.mediaDevices
-        .getUserMedia({
-          video: { width: 800, height: 600 } // change for user audio
-        })
-        .then(stream => {
-          videoTime = new timer();
-          video.srcObject = stream;
-          gotVideo = true;
-        });
-    })
-    .catch(error => {
-      console.log("error ahhhhh", error);
-    });
-}
+let getWebCam = () => {
+  // TODO: change to promise, instead of setTimeout
+  if (requestedVideo && !requestedVideoHappened) {
+    if (promiseVideo !== undefined) {
+      promiseVideo.then(_ => {
+        // Autoplay started!
+        navigator.mediaDevices
+          .getUserMedia({
+            video: { width: 600, height: 800 } // change for user audio
+          })
+          .then(stream => {
+            videoTime = new timer();
+            video.srcObject = stream;
+            gotVideo = true;
+          })
+          .catch(error => {
+            alert("Problem getting webcam");
+          });
+      });
+    }
+  }
+};
 
 // returns a frame encoded in base64
 const getFrame = () => {
-  if (gotVideo) {
+  if (gotVideo && requestedVideo) {
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
     const frame = canvas.toDataURL("image/png");
-    // const frame = getId(); // for testing, so we don't get a massive string
+    //const frame = [...Array(10)].map(i => (~~(Math.random() * 36)).toString(36)).join(""); // for testing, so we don't get a massive string
     videostack.push(frame, videoTime.getTime());
   }
-
-  //return data;
 };
 
-const sendFrames = () => {
-  const amount = 5;
-  // for (let i = 0; i < amount; i++) {
-  //   videostack.push(
-  //     [...Array(10)].map(i => (~~(Math.random() * 36)).toString(36)).join("")
-  //   );
-  // }
+const wsMessageHandler = message => {
+  let parsedMessage = JSON.parse(message);
+  console.log(parsedMessage);
+};
 
-  if (gotVideo) {
-    wss.send(videostack.popAll());
+const sendFrames = _ => {
+  const amount = 5;
+  if (gotVideo && requestedVideo) {
+    wss.send(createMessage("frame", videostack.popAll()));
   }
   console.log("sent");
 };
+
+function buttonClicked() {
+  requestedVideo = true;
+  wss.send(createMessage("start"));
+}
 
 let videostack = new VideoStack();
 const host = location.origin.replace(/^http/, "ws");
 const WS_URL = `${host}/?date=${newClient()}`;
 const wss = new WebSocket(WS_URL);
 
+setInterval(getWebCam, 500);
+
 wss.onopen = () => {
   console.log(`Connected to ${WS_URL}`);
   setInterval(sendFrames, 5000);
   setInterval(getFrame, 1000);
 };
+
 wss.onmessage = message => {
-  console.log(message);
+  wsMessageHandler(message.data);
 };

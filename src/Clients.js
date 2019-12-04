@@ -18,23 +18,50 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const fs = require("fs");
 const util = require("util");
+const Redis = require("redis");
+const FrameDecode = require("./helpers/decodeBase64");
+
+const chalk = require("chalk");
+
+const clientRedis = Redis.createClient();
 
 class Clients {
-  constructor() {
-    this.connectedClients = [];
-    this.clientVideoFrames = [];
-    this.clientAudio = [];
+  constructor(isVerbose = false) {
+    this.clients = [];
+    this.clientFrames = [];
+    this.verbose = isVerbose;
+    this.connectedCount = 0;
+    this.connectedFrameCount = 0;
+  }
+  printClients() {
+    let consoleOutput = chalk.red.bold("printClient(): ");
+    this.clients.forEach(aClient => {
+      consoleOutput =
+        consoleOutput +
+        chalk.white(
+          "Excepted=" +
+            aClient.excepted +
+            ", Id: " +
+            aClient.id +
+            ", Time: " +
+            util.inspect(aClient.time) +
+            "\n               " // ugly way of formating
+        );
+    });
+    console.log(consoleOutput);
   }
 
-  addClient(secWebsocketKey, websocketData, date) {
+  async addClient(secWebsocketKey, websocketData, date) {
     // assuming param is "date" as it looks for the 7th index in string
-    const cleanedDate = date.substr(7).replace(/%22/g, '"'); // %22 is how ["] is transmitted
+    // %22 is how ["] is transmitted
+    const cleanedDate = date.substr(7).replace(/%22/g, '"');
     const d = JSON.parse(cleanedDate);
+
     const newClient = {
       id: secWebsocketKey,
       websocketData: websocketData,
+      excepted: false, // flag for if client is excepted to start transmitting frames
       time: {
         day: d.day,
         hour: d.hour,
@@ -42,35 +69,70 @@ class Clients {
         second: d.second
       }
     };
-    this.connectedClients.push(newClient);
-    this.clientVideoFrames.push(newVideo(secWebsocketKey));
+    this.clients.push(newClient);
+    this.clientFrames.push(newVideo(secWebsocketKey));
+    this.connectedCount++;
+    if (this.verbose) {
+      console.log(
+        chalk.red("New Client Added with key: ") + chalk.white(secWebsocketKey)
+      );
+    }
+  }
+
+  /**
+   * accept a client to send frames
+   * @param id
+   * @returns {boolean} true if client is found
+   */
+  async acceptClient(id) {
+    let found = false;
+    this.clients.find(client => {
+      if (client.id === id) {
+        client.excepted = true;
+        found = true;
+      }
+    });
+    if (this.verbose) {
+      console.log(chalk.red("Client with key excepted: ") + chalk.white(id));
+    }
+    return found;
   }
 
   getId(secWebsocketKey) {
-    this.connectedClients.forEach(clients => {
+    this.clients.forEach(clients => {
       if (clients.id === secWebsocketKey) {
         return clients.websocketData;
       }
     });
     return null;
   }
+
   getVideoStats() {
-    console.log("connected clients: " + this.connectedClients.length);
-    console.log("how many frames we have: " + this.clientVideoFrames[0].frames.length);
+    console.log(chalk.blue("connected clients: ") + chalk.white(this.connectedCount));
+    console.log(
+      chalk.blue("how many frames we have: ") + chalk.white(this.connectedFrameCount)
+    );
   }
 
   // takes in an array of objects (dictionaries)
   addFrames(data, id) {
-    let success = false;
-    this.clientVideoFrames.forEach(videoFrames => {
-      if (videoFrames.id.localeCompare(id) === 0) {
-        data.forEach(frame => {
-          videoFrames.frames.push(frame);
-          success = true;
-        });
-      }
+    return new Promise((resolve, reject) => {
+      const frames = new FrameDecode(data).decode64();
+      let success = false;
+      this.clientFrames.forEach(videoFrames => {
+        if (videoFrames.id.localeCompare(id) === 0) {
+          frames.forEach(frame => {
+            if (this.verbose) {
+              this.connectedFrameCount++;
+            }
+            videoFrames.frames.push(frame);
+            success = true;
+          });
+          resolve("added frames to client");
+        }
+      });
+      if (!success) reject(`failed to add frames to client with ID: ${id}`);
     });
-    if (!success) throw "failed to add frames";
   }
 
   //

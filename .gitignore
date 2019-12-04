@@ -1,6 +1,7 @@
 # Project
 secrets
 *.txt
+test.*
 
 # Jetbrain IDE
 .idea

@@ -22,6 +22,7 @@ const util = require("util");
 
 class decode {
   constructor(arrayToCreateFrom) {
+    if (!arrayToCreateFrom) throw "decodeBase64 requires frames to decode silly!";
     this.rawData = this.parse(arrayToCreateFrom);
   }
   decode64() {
@@ -44,8 +45,7 @@ class decode {
    */
   parse(data) {
     // removes opening and closing [ ]
-    let cutData = data.substr(1, data.length - 2);
-
+    let cutData = subString(data, 42, data.length - 2); // Cuts out message type data that is sent with every frame
     // split each frame
     cutData = cutData.split("},{");
     // get rid of first { in array
@@ -60,15 +60,21 @@ class decode {
 
     // turn each frame string into an object!
     let finalFormattedData = [];
+
     cutData.forEach(eachFrame => {
       // stick a { and } so it can parse
       try {
         finalFormattedData.push(JSON.parse("{" + eachFrame + "}"));
-      } catch (SyntaxError) {
-        throw "Error parsing frame :(";
+      } catch (e) {
+        console.log("Error parsing frame :(");
+        throw e;
       }
     });
     return finalFormattedData;
   }
 }
+
+const subString = (_string, front, back) => {
+  return _string.substr(front, back - front);
+};
 module.exports = decode;
