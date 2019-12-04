@@ -70,7 +70,6 @@ const wss = new WebSocket.Server({ server }, undefined);
 const messages = new messageActor();
 
 wss.on("connection", (ws, req) => {
-  console.log("new client");
   messages
     .addMessage("connect", {
       wsKey: req.headers["sec-websocket-key"],

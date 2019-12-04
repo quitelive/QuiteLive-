@@ -27,7 +27,8 @@ const chalk = require("chalk");
 
 class messageActor {
   constructor() {
-    this.messageQueue = new Bull("client messages");
+
+    this.messageQueue = new Bull("client messages", process.env.REDIS_URL);
     this.Clients = new clients(true);
   }
 
