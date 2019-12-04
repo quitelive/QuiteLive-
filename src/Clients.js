@@ -132,45 +132,24 @@ class Clients {
     });
   }
 
-  //
-  //   newConnection(IP) {
-  //     const id = this.makeNewId();
-  //     if (!this.contains(IP)) {
-  //       this.connected[IP] = {
-  //         connected: true,
-  //         id: id
-  //       };
-  //     } else {
-  //       return "AlreadyConnected";
-  //     }
-  //   }
-  //
-  //   removeConnection(IP) {
-  //     if (!this.contains(IP)) {
-  //       delete this.connected[IP];
-  //       this.ids = this.ids.filter(e => e !== IP); // remove IP from IDs array
-  //     } else {
-  //       return "AlreadyDisconnected";
-  //     }
-  //   }
-  //
-  //   contains(IP) {
-  //     return IP in this.connected;
-  //   }
-  //
-  //   // return new ID that is not being used already
-  //   makeNewId() {
-  //     let foundOne = true;
-  //     while (foundOne) {
-  //       let id = crypto.randomBytes(16).toString("hex");
-  //       if (!(id in this.ids)) {
-  //         foundOne = false;
-  //       }
-  //     }
-  //     this.ids.push(id);
-  //     return id;
-  //   }
-  // }
+  removeClient(clientId) {
+    let found = false;
+    this.clients.forEach((aClient, i) => {
+      // remove clientId from clients
+      if (aClient.id === clientId) {
+        this.connectedCount--;
+        this.clients.splice(i, 1);
+      }
+    });
+
+    this.clientFrames.forEach((aClient, i) => {
+      // remove client from clientFrames
+      if (aClient.id === clientId) {
+        this.connectedFrameCount = aClient.frames.length - this.connectedFrameCount;
+        this.clientFrames.splice(i, 1);
+      }
+    });
+  }
 }
 
 const newVideo = secWebsocketKey => {

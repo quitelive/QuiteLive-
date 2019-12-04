@@ -37,7 +37,10 @@ class messageActor {
         this.logger(5000);
       }
       const message = currentMessage.data["aMessage"];
-
+      // remove clients that left
+      if (message.type === "leave") {
+        this.Clients.removeClient(message.data);
+      }
       // connect new clients
       if (message.type === "connect") {
         this.Clients.addClient(

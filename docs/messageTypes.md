@@ -36,6 +36,11 @@
 
 ---
 
+##### Server removes client from list of connected clients
+
+    type: leave
+        data: key
+
 ### No response from server calls
 
 ##### Client connects to websocket server _client -> server_
@@ -45,8 +50,10 @@ the fields like below
 
     type: connect
 
-Passed in object as extraArgs
-        
+---
+
+##### Passed in object as extraArgs
+
         request: null
         wsKey: req.headers["sec-websocket-key"],
         wsData: ws,

@@ -92,7 +92,9 @@ wss.on("connection", (ws, req) => {
 
   ws.on("close", client => {
     // TODO: Remove client from connectedClients
-    console.log("client left");
+    messages.addMessage("leave", req.headers["sec-websocket-key"]).then(_ => {
+      console.log("client left!");
+    });
   });
 });
 

@@ -25,9 +25,15 @@ const flatted = require("flatted");
  */
 
 const parseMessage = (data, extraArgs) => {
-  // special case where extra args coming from express req are
-  // a circular array, where JSON.parse will not work.
+  if (data === "leave") {
+    return {
+      type: data,
+      data: extraArgs
+    };
+  }
   if (data === "connect") {
+    // special case where extra args coming from express req are
+    // a circular array, where JSON.parse will not work.
     return {
       type: data,
       data: JSON.parse(flatted.stringify(extraArgs))
