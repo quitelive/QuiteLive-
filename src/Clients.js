@@ -19,12 +19,9 @@
  */
 
 const util = require("util");
-const Redis = require("redis");
 const FrameDecode = require("./helpers/decodeBase64");
 
 const chalk = require("chalk");
-
-const clientRedis = Redis.createClient();
 
 class Clients {
   constructor(isVerbose = false) {
