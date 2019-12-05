@@ -112,6 +112,7 @@ let getWebCam = () => {
             videoTime = new timer();
             video.srcObject = stream;
             gotVideo = true;
+            requestedVideoHappened = true;
           })
           .catch(error => {
             alert("Problem getting webcam");
