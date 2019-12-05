@@ -20,6 +20,7 @@
 
 const util = require("util");
 const FrameDecode = require("./helpers/decodeBase64");
+const os = require("os");
 
 const chalk = require("chalk");
 
@@ -108,6 +109,17 @@ class Clients {
     console.log(chalk.blue("connected clients: ") + chalk.white(this.connectedCount));
     console.log(
       chalk.blue("how many frames we have: ") + chalk.white(this.connectedFrameCount)
+    );
+
+    // Logging memory
+    console.log(
+      chalk.blue("Memory remaining %: ") +
+        chalk.white(
+          Math.round((os.freemem() / 1024 / 1024 / (os.totalmem() / 1024 / 1024)) * 100) +
+            "% with remaining mb: " +
+            Math.round(os.freemem() / 1024 / 1024) +
+            " Mb"
+        )
     );
   }
 
