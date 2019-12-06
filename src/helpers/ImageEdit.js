@@ -18,8 +18,11 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-let printVideoStats = clients => {
-    clients.forEach(aClient => {
+const Jimp = require("jimp");
 
-    });
-};
+const hashFrame = frame => {};
+
+
+
+module.exports = hashFrame();
+module.exports;

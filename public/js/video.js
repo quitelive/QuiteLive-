@@ -1,6 +1,11 @@
 // Credit to Alexandru Cambose - alexcambose
 // https://github.com/alexcambose/webcam-base64-streaming
 
+// TODO: Fix bug with button only changing on second click
+
+//TODO: Convert frames to buffers, use jimp
+// https://github.com/oliver-moran/jimp/issues/420#issuecomment-375313190
+
 // message sender
 const createMessageScemeas = function(request, data) {
   if (request === "start") {
@@ -70,7 +75,136 @@ class timer {
   }
 }
 
-let newClient = () => {
+class button {
+  /**
+   *
+   *
+   * @param currentState
+   *                "state1": {
+   *                  "description": "description for state"
+   *                  messageWhenClicked: {
+   *                    request: request type,
+   *                    data: data being passed in
+   *                  }
+   *                }
+   *
+   * @param id The html id the button will be inserted in
+   */
+  constructor(currentState, id) {
+    this.currentState = currentState;
+    this.htmlID = id;
+    this._button = document.createElement("button");
+
+    this.renderButton();
+  }
+  changeState(nextState) {
+    if (this.currentState.includes(nextState)) {
+      this.currentState = nextState;
+    } else {
+      throw "Invalid Button State Change";
+    }
+  }
+
+  onClick() {
+    this.currentState.messageOnClick().then();
+  }
+
+  disable() {
+    this._button.disabled = "disabled";
+  }
+  enable() {
+    this._button.enable = "enable";
+  }
+
+  /**
+   * Return name of current state for html purposes
+   */
+  getName() {
+    return this.currentState.description;
+  }
+
+  setState(state) {
+    this.currentState = state;
+    this.renderButton();
+  }
+
+  renderButton() {
+    // TODO: Can change this to its own one time method, as it only needs to happen once
+    this._button.setAttribute("class", "btn btn-outline-success btn-lg btn-block");
+    // make sure to link correct buttonClicked func with instantiated button class
+    this._button.setAttribute("onclick", "buttonClicked()");
+    if (this.currentState.image) {
+      // not working
+      this._button.innerHTML =
+        this.getName() +
+        ' <img src="files/play-load.gif" alt="Loading image" height="42" width="42"> ';
+    } else {
+      this._button.innerHTML = this.getName();
+    }
+    this._button.innerHTML = this.getName();
+    let wrapperDiv = document.getElementById(this.htmlID);
+    wrapperDiv.appendChild(this._button);
+  }
+}
+
+// All button states
+const playState = {
+  description: "Start Video",
+  messageOnClick: _ => {
+    return new Promise(resolve => {
+      requestedVideo = true;
+      if (gotVideo) {
+        wss.send(createMessage("start"));
+        primaryButton.disable();
+        primaryButton.setState(recordingState);
+        resolve();
+      }
+    });
+  }
+};
+
+const recordingState = {
+  description: "Recording",
+  image: "files/play-load.gif",
+  messageOnClick: _ => {}
+};
+
+class messageBox {
+  constructor(htmlID) {
+    this.header = document.createElement("h4");
+    this.message = document.createElement("p");
+    this.htmlID = htmlID;
+    this.initialize(); // display message with start state
+  }
+  initialize() {
+    this.render();
+    this.setHeader("Press to start recording");
+    this.setMessage("Once done, this video will be provably live by anyone");
+  }
+
+  render() {
+    this.header.setAttribute("class", "alert-heading messageBoxText");
+    this.message.setAttribute("class", "messageBoxText messageBoxP");
+    const wrapperDiv = document.getElementById(this.htmlID);
+    wrapperDiv.appendChild(this.header);
+    wrapperDiv.appendChild(this.message);
+  }
+  setHeader(newHeader) {
+    this.header.innerText = newHeader;
+  }
+  setMessage(newMessage) {
+    this.message.innerText = newMessage;
+  }
+}
+
+const primaryMessageBox = new messageBox("messageBox");
+const primaryButton = new button(playState, "buttonDiv"); // fill in id
+
+function buttonClicked() {
+  primaryButton.onClick();
+}
+
+let newClientSchema = () => {
   const d = new Date();
   const newClientToken = {
     day: d.getDate(),
@@ -98,7 +232,7 @@ let videoTime;
 const video = document.querySelector("video");
 const promiseVideo = document.querySelector("video").play();
 
-let getWebCam = () => {
+let getWebCam = _ => {
   // TODO: change to promise, instead of setTimeout
   if (requestedVideo && !requestedVideoHappened) {
     if (promiseVideo !== undefined) {
@@ -115,7 +249,7 @@ let getWebCam = () => {
             requestedVideoHappened = true;
           })
           .catch(error => {
-            alert("Problem getting webcam");
+            primaryMessageBox.setMessage("Error Getting Webcam");
           });
       });
     }
@@ -141,21 +275,17 @@ const wsMessageHandler = message => {
 };
 
 const sendFrames = _ => {
-  const amount = 5;
   if (gotVideo && requestedVideo) {
     wss.send(createMessage("frame", videostack.popAll()));
+    console.log("sent");
+  } else {
+    console.log("not sent");
   }
-  console.log("sent");
 };
-
-function buttonClicked() {
-  requestedVideo = true;
-  wss.send(createMessage("start"));
-}
 
 let videostack = new VideoStack();
 const host = location.origin.replace(/^http/, "ws");
-const WS_URL = `${host}/?date=${newClient()}`;
+const WS_URL = `${host}/?date=${newClientSchema()}`;
 const wss = new WebSocket(WS_URL);
 
 setInterval(getWebCam, 500);

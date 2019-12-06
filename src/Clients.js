@@ -21,6 +21,7 @@
 const util = require("util");
 const FrameDecode = require("./helpers/decodeBase64");
 const os = require("os");
+const fs = require("fs");
 
 const chalk = require("chalk");
 
@@ -127,6 +128,9 @@ class Clients {
   addFrames(data, id) {
     return new Promise((resolve, reject) => {
       const frames = new FrameDecode(data).decode64();
+      // fs.writeFile("test.json", util.inspect(frames), _ => {
+      //   console.log("done");
+      // });
       let success = false;
       this.clientFrames.forEach(videoFrames => {
         if (videoFrames.id.localeCompare(id) === 0) {
@@ -134,7 +138,7 @@ class Clients {
             if (this.verbose) {
               this.connectedFrameCount++;
             }
-            videoFrames.frames.push(frame);
+            console.log(frame);
             success = true;
           });
           resolve("added frames to client");

@@ -65,7 +65,6 @@ class messageActor {
           // for now, we except every connection
           const clientID = message.key; // right now the field will be straight in data
           this.Clients.acceptClient(clientID);
-          currentMessage.remove();
         }
 
         // frame

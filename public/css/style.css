@@ -32,3 +32,15 @@ body {
 .video-div {
   margin: 20px;
 }
+
+.messageBoxText {
+  text-align: center;
+}
+
+.messageBoxP {
+  margin-bottom: 1%;
+  padding-bottom: 1px;
+}
+
+.messageBox {
+}

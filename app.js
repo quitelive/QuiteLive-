@@ -50,12 +50,21 @@ const db = require("./src/mongodb");
 //   });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, _ => {
+const server = app.listen(PORT, () => {
   console.log(
     chalk.white.bold("[Quite Live] Server running on port: " + chalk.red(`${PORT}`))
   );
   console.log(chalk.white.bold(`[Quite Live] Exit app with SIGTERM (^C)`));
 });
+
+
+process.on("SIGTERM", () => {
+  server.close(() => {
+    console.log("Process terminated");
+  });
+});
+
+// Exit on SIGTERM - aka (^c)
 
 // Add the public directory
 app.use(Express.static("public"));
@@ -103,11 +112,4 @@ messages.dispatchMessages();
 
 app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");
-});
-
-// Exit on SIGTERM - aka (^c)
-process.on("SIGTERM", () => {
-  server.close(() => {
-    console.log("Process terminated");
-  });
 });

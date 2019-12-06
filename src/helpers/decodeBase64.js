@@ -64,7 +64,13 @@ class decode {
     cutData.forEach(eachFrame => {
       // stick a { and } so it can parse
       try {
-        finalFormattedData.push(JSON.parse("{" + eachFrame + "}"));
+        const parsedFrame = JSON.parse("{" + eachFrame + "}");
+        parsedFrame.frame = parsedFrame.frame.split(",")[1];
+        // first frame we get may be nothing an empty string
+        if (parsedFrame.frame !== "") {
+          parsedFrame.frame = Buffer.from(parsedFrame.frame, "base64");
+        }
+        finalFormattedData.push(parsedFrame);
       } catch (e) {
         console.log("Error parsing frame :(");
         throw e;
