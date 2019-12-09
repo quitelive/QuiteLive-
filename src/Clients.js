@@ -26,6 +26,7 @@ const Hasha = require("hasha");
 
 const FrameDecode = require("./helpers/decodeBase64");
 const Hashing = require("./helpers/hashing");
+const Wallet = require("./Wallet");
 
 class Clients {
   constructor(isVerbose = false) {
@@ -34,20 +35,21 @@ class Clients {
     this.verbose = isVerbose;
     this.connectedCount = 0;
     this.connectedFrameCount = 0;
+    this.wallet = new Wallet();
+  }
+
+  initWallet() {
+    this.wallet.load().then(_ => {
+      this.wallet.send();
+    });
   }
   printClients() {
     let consoleOutput = chalk.red.bold("printClient(): ");
     this.clients.forEach(aClient => {
-      consoleOutput =
-        consoleOutput +
-        chalk.white(
-          "Excepted=" +
-            aClient.excepted +
-            ", Id: " +
-            aClient.id +
-            ", Time: " +
-            util.inspect(aClient.time) +
-            "\n               " // ugly way of formatting
+      // prettier-ignore
+      consoleOutput = consoleOutput + chalk.white( "Excepted=" + aClient.excepted + ", Id: " 
+        + aClient.id + ", Time: " + util.inspect(aClient.time) + "\n               " 
+        // ugly way of formatting
         );
     });
     console.log(consoleOutput);
@@ -177,10 +179,6 @@ class Clients {
     });
   }
 }
-
-const newHash = (time, hash) => {
-  return { time: time, hash: hash };
-};
 
 const newVideo = secWebsocketKey => {
   return {

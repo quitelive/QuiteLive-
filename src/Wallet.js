@@ -124,6 +124,7 @@ class wallet {
    */
   send(amount = 1) {
     return new Promise((resolve, reject) => {
+      if (!this.loaded) reject("Error: load wallet before calling anything");
       let nextAddress = this.addressQueue.nextAddr();
       RequestPromise(
         `http://testnet-insight.dashevo.org/insight-api/addr/${nextAddress.publicKey}/utxo`,
@@ -180,6 +181,7 @@ class wallet {
    *
    */
   fundAddresses(amount = 100100) {
+    if (!this.loaded) reject("Error: load wallet before calling anything");
     let fundAddressTX = new Dashjs.Transaction().change(this.fundAddress.publicKey);
     RequestPromise(
       `http://testnet-insight.dashevo.org/insight-api/addr/${this.fundAddress.publicKey}/utxo`,
@@ -229,6 +231,8 @@ class wallet {
  * @return {Object}        - Dict with UTXO data
  */
 function getUTXO(address, callback, api = "default") {
+  if (!this.loaded) reject("Error: load wallet before calling anything");
+
   if (api === "default") {
     RequestPromise(
       `http://testnet-insight.dashevo.org/insight-api/addr/${address}/utxo`,
