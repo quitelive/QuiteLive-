@@ -18,12 +18,14 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const Queue = require("./Queue");
 const Bull = require("bull");
-const util = require("util");
+const Chalk = require("chalk");
+const Hasha = require("hasha");
+// const util = require("util");
+
+const Queue = require("./Queue");
 const parseMessage = require("./messageParser");
 const clients = require("./Clients");
-const chalk = require("chalk");
 
 class messageActor {
   constructor() {
@@ -75,7 +77,7 @@ class messageActor {
             })
             .then(m => {
               if (this.Clients.verbose) {
-                console.log(chalk.red(m));
+                console.log(Chalk.red(m));
                 currentMessage.remove();
               }
             });

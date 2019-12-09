@@ -18,14 +18,19 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// for using base64
-// https://github.com/fluent-ffmpeg/node-fluent-ffmpeg/issues/912
+const Mongoose = require("mongoose");
+const Schema = Mongoose.Schema;
 
-// the simple module for rendering video
-// https://github.com/h2non/videoshow
+const FundAddressSchema = new Schema({
+  id: {
+    type: Number,
+    required: true
+  },
 
-const Jimp = require("jimp");
-const hashFrame = frame => {};
+  FundAddressKey: {
+    type: String,
+    required: true
+  }
+});
 
-module.exports = hashFrame();
-module.exports;
+Mongoose.model("FundAddress", FundAddressSchema);

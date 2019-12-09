@@ -21,6 +21,31 @@
 const RequestPromise = require("request-promise");
 const Dashjs = require("@dashevo/dashcore-lib");
 const fs = require("fs");
+const Mongoose = require("mongoose");
+
+require("../models/AddressQueue");
+const addressQueueSchema = Mongoose.model("AddressQueue");
+require("../models/FundAddress");
+const fundAddressSchema = Mongoose.model("FundAddress");
+
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+  const fs = require("fs");
+}
+
+const mongooseURI = `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MONGODB_PW}@quitelive-1-vjn8k.mongodb.net/test`;
+
+Mongoose.connect(mongooseURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+  .then(() => {
+    console.log(`[QuiteLive Wallet] MongoDB Connected`);
+  })
+  .catch(err => {
+    console.error(`[QuiteLive Wallet] Failed to connect to MongoDB Server`);
+    console.error(`[QuiteLive Wallet] Cause: ${err}`);
+  });
 
 class AddressQueue {
   /**
@@ -28,33 +53,13 @@ class AddressQueue {
    * Queue for each address. We need this as each address needs time for the tx to confirm
    * Therefor we need a queue to keep track of each address
    *
-   * @param {string} addresses - json file to parse, adds address and info to queue
+   * @param {object} addresses - json file to parse, adds address and info to queue
    * @param {string} network - defaults to "mainnet", sets what type of network we are using
    *                           either "mainnet" or "testnet"
    */
 
   constructor(addresses, network = "mainet") {
-    if (addresses) {
-      let currentAddress;
-      for (const address in addresses) {
-        currentAddress = addresses[address];
-        if (!formatted(currentAddress)) {
-          console.log(currentAddress);
-          throw "Wallet File Malformed";
-        }
-        if (currentAddress["privateKey"].network !== network) {
-          throw `Wrong wallet type, expecting ${network},
-          found ${address["privateKey"].network !== network}`;
-        }
-      }
-      this.queue = [];
-      for (let addrIndex in addresses) {
-        this.queue.push(addresses[addrIndex]);
-      }
-      this.numberOfAddresses = addresses.length;
-    } else {
-      throw "No wallet file/addresses provided";
-    }
+    this.queue = addresses;
   }
 
   /**
@@ -83,19 +88,28 @@ class wallet {
    * @param {number=} numberOfAddresses - number of new address to generate
    */
 
-  constructor(
-    walletFile = "secrets/wallet.json",
-    numberOfAddresses = 1000,
-    fundAddressFile = "secrets/fundAddress.json"
-  ) {
-    this.fundAddress = readAddr(fundAddressFile);
-    if (walletFile) {
-      this.addressQueue = new AddressQueue(readAddr(walletFile), "testnet");
-    } else {
-      this.addressQueue = newWalletFile();
-    }
+  constructor() {
+    this.loaded = false;
+    this.fundAddress = null;
+    this.addressQueue = null;
+    //   walletFile = "secrets/wallet.json",
+    //   numberOfAddresses = 1000,
+    //   fundAddressFile = "secrets/fundAddress.json"
   }
 
+  load() {
+    return new Promise(resolve => {
+      readFromMongodb("fund").then(data => {
+        this.fundAddress = data;
+        readFromMongodb("queue").then(data => {
+          this.addressQueue = new AddressQueue(data);
+          this.loaded = true;
+          console.log("[QuiteLive Wallet] Loaded wallet from db");
+          resolve();
+        });
+      });
+    });
+  }
   /**
    * @return {number} Amount of address in the wallet queue
    */
@@ -105,44 +119,44 @@ class wallet {
 
   /**
    * Sends a tx, returns txid
-   * @param {function} callback - function to call that tries to return txid
    * @param {number} amount - amount to send. Defaults to 1 duff
-   * @return {string} txid of transaction sent
    *
    */
-  send(callback, amount = 1) {
-    let nextAddress = this.addressQueue.nextAddr();
-    RequestPromise(
-      `http://testnet-insight.dashevo.org/insight-api/addr/${nextAddress.publicKey}/utxo`,
-      {
-        json: true
-      }
-    ).then(data => {
-      const newPrivateKey = Dashjs.PrivateKey(nextAddress.privateKey);
-      let newTX = new Dashjs.Transaction()
-        .from(data[0])
-        .change(nextAddress.publicKey)
-        .to(this.fundAddress.publicKey, amount)
-        .feePerKb(1100) // generous tx fee? normal is 1000
-        .sign(newPrivateKey);
-      RequestPromise.post({
-        url: "http://testnet-insight.dashevo.org/insight-api/tx/send",
-        body: {
-          rawtx: newTX.toString()
-        },
-        json: true
-      })
-        .then(data => {
-          if (data.statusCode === 200) {
-            return callback(data); // bad request
-          }
-          if (data.txid) {
-            return callback(data.txid);
-          }
+  send(amount = 1) {
+    return new Promise((resolve, reject) => {
+      let nextAddress = this.addressQueue.nextAddr();
+      RequestPromise(
+        `http://testnet-insight.dashevo.org/insight-api/addr/${nextAddress.publicKey}/utxo`,
+        {
+          json: true
+        }
+      ).then(data => {
+        const newPrivateKey = Dashjs.PrivateKey(nextAddress.privateKey);
+        let newTX = new Dashjs.Transaction()
+          .from(data[0])
+          .change(nextAddress.publicKey)
+          .to(this.fundAddress.publicKey, amount)
+          .feePerKb(1100) // generous tx fee? normal is 1000
+          .sign(newPrivateKey);
+        RequestPromise.post({
+          url: "http://testnet-insight.dashevo.org/insight-api/tx/send",
+          body: {
+            rawtx: newTX.toString()
+          },
+          json: true
         })
-        .catch(data => {
-          return callback("failed to post tx", data);
-        });
+          .then(data => {
+            if (data.statusCode === 200) {
+              resolve(data); // bad request
+            }
+            if (data.txid) {
+              resolve(data.txid);
+            }
+          })
+          .catch(data => {
+            reject("failed to post tx " + data);
+          });
+      });
     });
   }
 
@@ -150,7 +164,13 @@ class wallet {
    * @classdesc Closes wallet in correct queue order
    */
   closeWallet() {
-    writeAddr(this.addressQueue, "wallet.json", true);
+    writeToMongoDb("queue", this.addressQueue).then(_ => {
+      console.log("[QuiteLive Wallet] Saved wallet queue");
+    });
+
+    writeToMongoDb("fund", this.fundAddress).then(_ => {
+      console.log("[QuiteLive Wallet] Saved FundAddress");
+    });
   }
 
   /**
@@ -203,6 +223,7 @@ class wallet {
  * BIG yuck
  *
  * @param {String} address - address to get UTXO from
+ * @param callback
  * @param {String} api     - which api to fetch data from
  *                                * default is http://testnet-insight.dashevo.org
  * @return {Object}        - Dict with UTXO data
@@ -227,6 +248,83 @@ function getUTXO(address, callback, api = "default") {
 }
 
 // NON CLASS FUNCTIONS
+
+/**
+ * retrieve data
+ * @param type {string} Either fund address, or queue addresses
+ */
+const readFromMongodb = type => {
+  return new Promise((resolve, reject) => {
+    if (type === "queue") {
+      addressQueueSchema.findOne({ id: 1 }, (error, addressQueue) => {
+        if (addressQueue) resolve(JSON.parse(addressQueue.walletQueue));
+        resolve(newWalletFile());
+      });
+    } else if (type === "fund") {
+      fundAddressSchema.findOne({ id: 1 }, (error, fundAddress) => {
+        if (fundAddress) resolve(JSON.parse(fundAddress.FundAddressKey));
+        resolve(createFundAddr());
+      });
+    } else reject("Specify a type, either fund or queue");
+  });
+};
+
+const writeToMongoDb = (type, dataToInsert) => {
+  // TODO: Refactor, remove repeated code
+  return new Promise((resolve, reject) => {
+    if (type === "queue") {
+      // if document doesn't exist
+      addressQueueSchema.findOne({ id: 1 }, null, null, (error, dbData) => {
+        if (!dbData) {
+          console.log("here");
+          const newAddressQueue = new addressQueueSchema({
+            id: 1,
+            // TODO: fix this bug, stringing it is not optimised
+            // see https://github.com/Automattic/mongoose/issues/6109 when we don't stringify the data
+            walletQueue: JSON.stringify(dataToInsert.queue)
+          });
+          newAddressQueue.save().then(_ => {
+            resolve();
+          });
+        } else {
+          addressQueueSchema.updateOne(
+            { id: 1 },
+            // see https://github.com/Automattic/mongoose/issues/6109 when we don't stringify the data
+            { walletQueue: JSON.stringify(dataToInsert.queue) },
+            null,
+            (error, returned) => {
+              resolve();
+            }
+          );
+        }
+      });
+    } else if (type === "fund") {
+      fundAddressSchema.findOne({ id: 1 }, null, null, (error, dbData) => {
+        if (!dbData) {
+          console.log("here");
+          const fundAddress = new fundAddressSchema({
+            id: 1,
+            // see https://github.com/Automattic/mongoose/issues/6109 when we don't stringify the data
+            FundAddressKey: JSON.stringify(dataToInsert)
+          });
+          fundAddress.save().then(_ => {
+            resolve();
+          });
+        } else {
+          fundAddressSchema.updateOne(
+            { id: 1 },
+            // see https://github.com/Automattic/mongoose/issues/6109 when we don't stringify the data
+            { FundAddressKey: JSON.stringify(dataToInsert) },
+            null,
+            (error, returned) => {
+              resolve();
+            }
+          );
+        }
+      });
+    }
+  });
+};
 
 function formatted(obj, template = "default") {
   return "publicKey" in obj && "privateKey" in obj;
@@ -260,13 +358,12 @@ function newWalletFile(size = 1000) {
 
 function createFundAddr(filename = "secrets/fundAddress.json") {
   const privateKey = new Dashjs.PrivateKey(Dashjs.Networks.testnet);
-  let fundAddress = {
+  return {
     privateKey: privateKey,
     publicKey: new Dashjs.PublicKey(privateKey, Dashjs.Networks.testnet)
       .toAddress()
       .toString()
   };
-  writeAddr(fundAddress, filename);
 }
 
 /**
@@ -275,43 +372,43 @@ function createFundAddr(filename = "secrets/fundAddress.json") {
  * @return {Object}         - Returns save from queue file
  */
 
-function readAddr(fileName) {
-  return JSON.parse(fs.readFileSync(fileName, "utf8"));
-}
+// function readAddr(fileName) {
+//   return JSON.parse(fs.readFileSync(fileName, "utf8"));
+// }
 
 /**
  * helper function to write out wallets to file
- * @param {String} data - data to write out
+ * @param {{privateKey: PrivateKey, publicKey: string}} data - data to write out
  * @param {String} filename - filename to write too
  * @param {Boolean} overwrite - flag which either tells function to overwrite an existing file of the same nme
  */
-function writeAddr(data, filename, overwrite = false) {
-  if (data.hasOwnProperty("queue")) {
-    let dataToFile = data.queue;
-    if (overwrite) {
-      fs.writeFileSync(
-        "secrets/" + filename,
-        JSON.stringify(dataToFile, null, 2),
-        "utf-8",
-        function(err) {
-          if (err) throw err;
-        }
-      );
-    } else {
-      filename = filename.split(".");
-      fs.writeFileSync(
-        `secrets/${filename[0]}.new.${filename[1]}`,
-        JSON.stringify(dataToFile, null, 2),
-        {
-          options: "utf-8"
-        },
-        function(err) {
-          if (err) throw err;
-        }
-      );
-    }
-  }
-  return "Wrong data structure to write out using this function";
-}
+// function writeAddr(data, filename, overwrite = false) {
+//   if (data.hasOwnProperty("queue")) {
+//     let dataToFile = data.queue;
+//     if (overwrite) {
+//       fs.writeFileSync(
+//         "secrets/" + filename,
+//         JSON.stringify(dataToFile, null, 2),
+//         "utf-8",
+//         function(err) {
+//           if (err) throw err;
+//         }
+//       );
+//     } else {
+//       filename = filename.split(".");
+//       fs.writeFileSync(
+//         `secrets/${filename[0]}.new.${filename[1]}`,
+//         JSON.stringify(dataToFile, null, 2),
+//         {
+//           options: "utf-8"
+//         },
+//         function(err) {
+//           if (err) throw err;
+//         }
+//       );
+//     }
+//   }
+//   return "Wrong data structure to write out using this function";
+// }
 
 module.exports = wallet;

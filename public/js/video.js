@@ -153,7 +153,7 @@ const playState = {
   messageOnClick: _ => {
     return new Promise(resolve => {
       requestedVideo = true;
-      if (gotVideo) {
+      if (gotVideo) { // TODO: Here. debug two click thing
         wss.send(createMessage("start"));
         primaryButton.disable();
         primaryButton.setState(recordingState);

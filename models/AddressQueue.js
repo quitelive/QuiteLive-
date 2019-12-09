@@ -18,14 +18,23 @@
  * along with QuiteLive.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// for using base64
-// https://github.com/fluent-ffmpeg/node-fluent-ffmpeg/issues/912
+const Mongoose = require("mongoose");
+const Schema = Mongoose.Schema;
 
-// the simple module for rendering video
-// https://github.com/h2non/videoshow
+// TODO: Optimisations can be done to this circular array.
+//  Such as "caching", in the sense that after we have a copy of the address,
+//  we only send back the index we are currently at to the db.
 
-const Jimp = require("jimp");
-const hashFrame = frame => {};
+const addressQueue = new Schema({
+  id: {
+    type: Number,
+    required: true
+  },
 
-module.exports = hashFrame();
-module.exports;
+  walletQueue: {
+    type: String, // see https://github.com/Automattic/mongoose/issues/6109 when we don't stringify the data
+    required: true
+  }
+});
+
+Mongoose.model("AddressQueue", addressQueue);

@@ -19,11 +19,13 @@
  */
 
 const util = require("util");
-const FrameDecode = require("./helpers/decodeBase64");
 const os = require("os");
 const fs = require("fs");
-
 const chalk = require("chalk");
+const Hasha = require("hasha");
+
+const FrameDecode = require("./helpers/decodeBase64");
+const Hashing = require("./helpers/hashing");
 
 class Clients {
   constructor(isVerbose = false) {
@@ -128,19 +130,27 @@ class Clients {
   addFrames(data, id) {
     return new Promise((resolve, reject) => {
       const frames = new FrameDecode(data).decode64();
-      // fs.writeFile("test.json", util.inspect(frames), _ => {
-      //   console.log("done");
-      // });
       let success = false;
-      this.clientFrames.forEach(videoFrames => {
-        if (videoFrames.id.localeCompare(id) === 0) {
-          frames.forEach(frame => {
+      this.clientFrames.forEach(clientsVideoFrames => {
+        // add frames to correct client
+        if (clientsVideoFrames.id.localeCompare(id) === 0) {
+          frames.forEach(aFrame => {
+            // count frame count if we want
             if (this.verbose) {
               this.connectedFrameCount++;
             }
-            console.log(frame);
+            // add a frame to clients
+            clientsVideoFrames.frames.push(aFrame);
             success = true;
           });
+
+          console.log(
+            new Hashing(
+              this.clientFrames,
+              id,
+              "7304991d883eb4aadc1757677d4b5fb788088e141fa6075ddbb1d80244fb16db"
+            ).finalWordList
+          );
           resolve("added frames to client");
         }
       });
@@ -167,6 +177,10 @@ class Clients {
     });
   }
 }
+
+const newHash = (time, hash) => {
+  return { time: time, hash: hash };
+};
 
 const newVideo = secWebsocketKey => {
   return {

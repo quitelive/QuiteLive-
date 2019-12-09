@@ -58,25 +58,27 @@ class decode {
     );
     // formatting done
 
-    // turn each frame string into an object!
-    let finalFormattedData = [];
-
+    // turn each frame string into a buffer!
+    let bufferArray = [];
     cutData.forEach(eachFrame => {
-      // stick a { and } so it can parse
       try {
+        // stick a { and } so it can parse into json
+        // TODO: Remove need to parsing, seems like extra work for the server when we could optimise
         const parsedFrame = JSON.parse("{" + eachFrame + "}");
         parsedFrame.frame = parsedFrame.frame.split(",")[1];
-        // first frame we get may be nothing an empty string
+        // first frame we get may be an empty string
         if (parsedFrame.frame !== "") {
-          parsedFrame.frame = Buffer.from(parsedFrame.frame, "base64");
+          bufferArray.push({
+            time: parsedFrame.time,
+            frame: Buffer.from(parsedFrame.frame, "base64") // turn into buffer
+          });
         }
-        finalFormattedData.push(parsedFrame);
       } catch (e) {
         console.log("Error parsing frame :(");
         throw e;
       }
     });
-    return finalFormattedData;
+    return bufferArray;
   }
 }
 

@@ -26,28 +26,28 @@ if (process.env.NODE_ENV !== "production") {
 const Express = require("express");
 const WebSocket = require("ws");
 const chalk = require("chalk");
+const Mongoose = require("mongoose");
 
 const api = require("./routes/api");
 const messageActor = require("./src/messageActor");
 
 const app = Express();
 
-// Connect to MongoDB Server
-const db = require("./src/mongodb");
-
 // Connect to mongo database
-// Mongoose.connect(db.mongoURI, {
-//   useNewUrlParser: true,
-//   useCreateIndex: true,
-//   useUnifiedTopology: true
-// })
-//   .then(() => {
-//     console.log(`MongoDB Connected -> ${db.mongoURI}`);
-//   })
-//   .catch(err => {
-//     console.error(`Failed to connect to MongoDB Server -> ${db.mongoURI}`);
-//     console.error(`Cause: ${err}`);
-//   });
+const mongooseURI = `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MONGODB_PW}@quitelive-1-vjn8k.mongodb.net/test?retryWrites=true&w=majority`;
+
+Mongoose.connect(mongooseURI, {
+  useNewUrlParser: true,
+  useCreateIndex: true,
+  useUnifiedTopology: true
+})
+  .then(() => {
+    console.log(`MongoDB Connected`);
+  })
+  .catch(err => {
+    console.error(`Failed to connect to MongoDB Server`);
+    console.error(`Cause: ${err}`);
+  });
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
@@ -56,7 +56,6 @@ const server = app.listen(PORT, () => {
   );
   console.log(chalk.white.bold(`[Quite Live] Exit app with SIGTERM (^C)`));
 });
-
 
 process.on("SIGTERM", () => {
   server.close(() => {
