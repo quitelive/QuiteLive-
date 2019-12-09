@@ -7,7 +7,7 @@
 // https://github.com/oliver-moran/jimp/issues/420#issuecomment-375313190
 
 // message sender
-const createMessageScemeas = function(request, data) {
+const createMessageSchemas = function(request, data) {
   if (request === "start") {
     return {
       type: "video",
@@ -31,10 +31,22 @@ const createMessageScemeas = function(request, data) {
       data: data
     };
   }
+  if (request === "getSeed") {
+    return {
+      type: "video",
+      request: "tx"
+    };
+  }
+  if (request === "done") {
+    return {
+      type: "video",
+      request: "done"
+    };
+  }
 };
 
 const createMessage = (request, data) => {
-  const message = createMessageScemeas(request, data);
+  const message = createMessageSchemas(request, data);
   return JSON.stringify(message);
 };
 
@@ -46,7 +58,7 @@ class VideoStack {
   }
 
   popAll() {
-    const message = createMessageScemeas("frame", this.videoStack);
+    const message = createMessageSchemas("frame", this.videoStack);
     this.clearStack();
     return JSON.stringify(message);
   }
@@ -77,8 +89,6 @@ class timer {
 
 class button {
   /**
-   *
-   *
    * @param currentState
    *                "state1": {
    *                  "description": "description for state"
@@ -87,7 +97,6 @@ class button {
    *                    data: data being passed in
    *                  }
    *                }
-   *
    * @param id The html id the button will be inserted in
    */
   constructor(currentState, id) {
@@ -106,7 +115,7 @@ class button {
   }
 
   onClick() {
-    this.currentState.messageOnClick().then();
+    this.currentState.messageOnClick();
   }
 
   disable() {
@@ -153,10 +162,15 @@ const playState = {
   messageOnClick: _ => {
     return new Promise(resolve => {
       requestedVideo = true;
-      if (gotVideo) { // TODO: Here. debug two click thing
+      if (gotVideo) {
+        console.log("here");
         wss.send(createMessage("start"));
-        primaryButton.disable();
+        // primaryButton.disable();
         primaryButton.setState(recordingState);
+        primaryMessageBox.setHeader("Recording Video... Smile!");
+        primaryMessageBox.setMessage(
+          "When your done with your message, please click the button again to end"
+        );
         resolve();
       }
     });
@@ -164,9 +178,19 @@ const playState = {
 };
 
 const recordingState = {
-  description: "Recording",
+  description: "Recording...",
   image: "files/play-load.gif",
-  messageOnClick: _ => {}
+  messageOnClick: _ => {
+    wss.send(createMessage("getSeed"));
+  }
+};
+
+const readingSeedState = {
+  description: "Click when done reciting words",
+  messageOnClick: _ => {
+    wss.send(createMessage("done"));
+    requestedVideo = false;
+  }
 };
 
 class messageBox {
@@ -201,6 +225,7 @@ const primaryMessageBox = new messageBox("messageBox");
 const primaryButton = new button(playState, "buttonDiv"); // fill in id
 
 function buttonClicked() {
+  // being used in rendered html button
   primaryButton.onClick();
 }
 
@@ -247,6 +272,7 @@ let getWebCam = _ => {
             video.srcObject = stream;
             gotVideo = true;
             requestedVideoHappened = true;
+            primaryButton.onClick();
           })
           .catch(error => {
             primaryMessageBox.setMessage("Error Getting Webcam");
@@ -270,7 +296,16 @@ const getFrame = () => {
 };
 
 const wsMessageHandler = message => {
+  console.log(message);
   let parsedMessage = JSON.parse(message);
+  if (parsedMessage.type === "video") {
+    if (parsedMessage.request === "tx") {
+      primaryMessageBox.setHeader("Please say these words out loud");
+      primaryMessageBox.setMessage(parsedMessage.data);
+      primaryButton.disable();
+    }
+  }
+
   console.log(parsedMessage);
 };
 

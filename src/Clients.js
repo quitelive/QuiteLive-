@@ -40,7 +40,7 @@ class Clients {
 
   initWallet() {
     this.wallet.load().then(_ => {
-      this.wallet.send();
+      //
     });
   }
   printClients() {
@@ -54,7 +54,9 @@ class Clients {
     });
     console.log(consoleOutput);
   }
-
+  renderVideo(id) {
+    // do stuff here for rendering
+  }
   async addClient(secWebsocketKey, websocketData, date) {
     // assuming param is "date" as it looks for the 7th index in string
     // %22 is how ["] is transmitted
@@ -64,6 +66,7 @@ class Clients {
     const newClient = {
       id: secWebsocketKey,
       websocketData: websocketData,
+      txid: null,
       excepted: false, // flag for if client is excepted to start transmitting frames
       time: {
         day: d.day,
@@ -93,6 +96,10 @@ class Clients {
       if (client.id === id) {
         client.excepted = true;
         found = true;
+        this.wallet.send().then(txid => {
+          client.txid = txid;
+          this.wallet.closeWallet(); // TODO: save wallet every time... this is not great for the main thread
+        });
       }
     });
     if (this.verbose) {
@@ -127,7 +134,17 @@ class Clients {
         )
     );
   }
-
+  getSeed(id) {
+    return new Promise(resolve => {
+      this.clients.forEach(aClient => {
+        if (aClient.id.localeCompare(id) === 0) {
+          // TODO: send this seed back to client
+          // passing seed word back to websocket instance
+          resolve(new Hashing(this.clientFrames, id, aClient.txid).wordSeed());
+        }
+      });
+    });
+  }
   // takes in an array of objects (dictionaries)
   addFrames(data, id) {
     return new Promise((resolve, reject) => {
@@ -145,14 +162,6 @@ class Clients {
             clientsVideoFrames.frames.push(aFrame);
             success = true;
           });
-
-          console.log(
-            new Hashing(
-              this.clientFrames,
-              id,
-              "7304991d883eb4aadc1757677d4b5fb788088e141fa6075ddbb1d80244fb16db"
-            ).finalWordList
-          );
           resolve("added frames to client");
         }
       });

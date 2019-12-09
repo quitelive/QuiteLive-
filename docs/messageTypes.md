@@ -31,8 +31,6 @@
 
     type: video
         request: tx
-        data: txid
-        id: id client used
 
 ---
 

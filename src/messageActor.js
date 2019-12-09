@@ -28,9 +28,10 @@ const parseMessage = require("./messageParser");
 const clients = require("./Clients");
 
 class messageActor {
-  constructor() {
+  constructor(classMessageSender) {
     this.messageQueue = new Bull("client messages", process.env.REDIS_URL);
     this.Clients = new clients(true);
+    this.classMessageSender = classMessageSender;
   }
 
   dispatchMessages() {
@@ -72,15 +73,21 @@ class messageActor {
         // frame
         if (message.request === "frame") {
           this.Clients.addFrames(message.data, message.key)
-            .catch(e => {
-              throw e;
-            })
             .then(m => {
               if (this.Clients.verbose) {
                 console.log(Chalk.red(m));
                 currentMessage.remove();
               }
+            })
+            .catch(e => {
+              throw e;
             });
+        }
+        if (message.request === "tx") {
+          // passing seed word back to websocket instance
+          this.Clients.getSeed(message.key).then(seed => {
+            this.classMessageSender.addMessage(seed); // TODO: this only works with one client
+          });
         }
       }
     });

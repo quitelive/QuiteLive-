@@ -36,6 +36,14 @@ class getSeed {
     this.toWordList();
   }
 
+  wordSeed() {
+    return JSON.stringify({
+      type: "video",
+      request: "tx",
+      data: this.finalWordList
+    });
+  }
+
   merkle() {
     const tree = new MerkleTree(this.frames, this.sha256);
     return tree.getRoot().toString("hex");
@@ -72,9 +80,7 @@ class getSeed {
       const word = this.wordList[i * 16 + parseInt(hashIndex, 16)];
       hashToWordList.push(word);
     });
-
     hashToWordList = hashToWordList.splice(0, 16);
-
     this.finalWordList = hashToWordList.join(" ");
   }
 }

@@ -30,6 +30,8 @@ const Mongoose = require("mongoose");
 
 const api = require("./routes/api");
 const messageActor = require("./src/messageActor");
+// for sending seed back and forth
+const ClassMessageSender = require("./src/interClassMessageSender");
 
 const app = Express();
 
@@ -59,10 +61,10 @@ app.use("/api", api);
 
 const wss = new WebSocket.Server({ server }, undefined);
 
-const messages = new messageActor();
+const messageSender = new ClassMessageSender();
+
+const messages = new messageActor(messageSender);
 messages.Clients.initWallet();
-
-
 
 wss.on("connection", (ws, req) => {
   messages
@@ -83,6 +85,9 @@ wss.on("connection", (ws, req) => {
       .catch(e => {
         throw e;
       });
+    if (messageSender.hasMessage()) {
+      ws.send(messageSender.getMessage());
+    }
   });
 
   ws.on("close", client => {
