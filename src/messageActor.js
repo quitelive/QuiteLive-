@@ -87,6 +87,7 @@ class messageActor {
           // passing seed word back to websocket instance
           this.Clients.getSeed(message.key).then(seed => {
             this.classMessageSender.addMessage(seed); // TODO: this only works with one client
+            currentMessage.remove();
           });
         }
       }

@@ -181,6 +181,7 @@ const recordingState = {
   description: "Recording...",
   image: "files/play-load.gif",
   messageOnClick: _ => {
+    console.log("here");
     wss.send(createMessage("getSeed"));
   }
 };
