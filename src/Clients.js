@@ -20,9 +20,7 @@
 
 const util = require("util");
 const os = require("os");
-const fs = require("fs");
 const chalk = require("chalk");
-const Hasha = require("hasha");
 
 const FrameDecode = require("./helpers/decodeBase64");
 const Hashing = require("./helpers/hashing");
@@ -40,7 +38,7 @@ class Clients {
 
   initWallet() {
     this.wallet.load().then(_ => {
-      //
+      console.log(chalk.red("[Quite Live] Quite Live Ready!"));
     });
   }
   printClients() {

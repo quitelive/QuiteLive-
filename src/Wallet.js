@@ -20,7 +20,6 @@
 
 const RequestPromise = require("request-promise");
 const Dashjs = require("@dashevo/dashcore-lib");
-const fs = require("fs");
 const Mongoose = require("mongoose");
 
 require("../models/AddressQueue");
@@ -37,7 +36,8 @@ const mongooseURI = `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MON
 
 Mongoose.connect(mongooseURI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  useCreateIndex: true
 })
   .then(() => {
     console.log(`[QuiteLive Wallet] MongoDB Connected`);
@@ -51,11 +51,17 @@ class AddressQueue {
   /**
    * @class
    * Queue for each address. We need this as each address needs time for the tx to confirm
-   * Therefor we need a queue to keep track of each address
+   * Therefor we need a queue to keep track of each address.
    *
-   * @param {object} addresses - json file to parse, adds address and info to queue
-   * @param {string} network - defaults to "mainnet", sets what type of network we are using
-   *                           either "mainnet" or "testnet"
+   * // TODO: Make Wallet's AddressQueue more efficient
+   *    This would be an easyish task as right now we are shuffling each address around a
+   *    huge array of objects. Instead, we could use an index counter and just use
+   *    indexCounter % NumberOfAddresses to keep track of the current address!
+   *
+   *
+   * @param {object} addresses List of dicts, holding addresses with priv/pub keys. Comes from MongoDb.
+   * @param {string} network Defaults to "mainnet", sets what type of network we are using
+   *                           either "mainnet" or "testnet".
    */
 
   constructor(addresses, network = "mainet") {
@@ -73,7 +79,8 @@ class AddressQueue {
   }
 
   /**
-   * @return {number} Amount of address in the queue
+   * Gets number of addresses.
+   * @return {number} Amount of address in the queue.
    */
   getSize() {
     return this.queue.length;
@@ -83,20 +90,18 @@ class AddressQueue {
 class wallet {
   /**
    * Instantiate a "wallet" of sorts
-   * @param {string=} walletFile - Relative file path to json wallet file
-   * @param {string=} fundAddressFile - relative file path to json wallet file
-   * @param {number=} numberOfAddresses - number of new address to generate
    */
 
   constructor() {
     this.loaded = false;
     this.fundAddress = null;
     this.addressQueue = null;
-    //   walletFile = "secrets/wallet.json",
-    //   numberOfAddresses = 1000,
-    //   fundAddressFile = "secrets/fundAddress.json"
   }
 
+  /**
+   * Helper function that loads both FundAddress and AddressQueue addresses from mongoDB
+   * @returns {Promise<null>} resolves when it loads both objects
+   */
   load() {
     return new Promise(resolve => {
       readFromMongodb("fund").then(data => {
@@ -104,7 +109,7 @@ class wallet {
         readFromMongodb("queue").then(data => {
           this.addressQueue = new AddressQueue(data);
           this.loaded = true;
-          console.log("[QuiteLive Wallet] Loaded wallet from db");
+          console.log("[Quite Live Wallet] Loaded wallet from db");
           resolve();
         });
       });
@@ -119,7 +124,7 @@ class wallet {
 
   /**
    * Sends a tx, returns txid
-   * @param {number} amount - amount to send. Defaults to 1 duff
+   * @param {number} amount - amount to send. Defaults to 1 duff/satoshi.
    *
    */
   send(amount = 1) {
@@ -162,15 +167,16 @@ class wallet {
   }
 
   /**
-   * @classdesc Closes wallet in correct queue order
+   * Closes wallet to preserve queue order. Gives time for addresses to confirm there transactions.
+   *
    */
   closeWallet() {
     writeToMongoDb("queue", this.addressQueue).then(_ => {
-      console.log("[QuiteLive Wallet] Saved wallet queue");
+      console.log("[Quite Live Wallet] Saved wallet queue");
     });
 
     writeToMongoDb("fund", this.fundAddress).then(_ => {
-      console.log("[QuiteLive Wallet] Saved FundAddress");
+      console.log("[Quite Live Wallet] Saved FundAddress");
     });
   }
 
@@ -219,43 +225,12 @@ class wallet {
       });
   }
 }
-
-/**
- * BROKEN oh promises...
- * BIG yuck
- *
- * @param {String} address - address to get UTXO from
- * @param callback
- * @param {String} api     - which api to fetch data from
- *                                * default is http://testnet-insight.dashevo.org
- * @return {Object}        - Dict with UTXO data
- */
-function getUTXO(address, callback, api = "default") {
-  if (!this.loaded) reject("Error: load wallet before calling anything");
-
-  if (api === "default") {
-    RequestPromise(
-      `http://testnet-insight.dashevo.org/insight-api/addr/${address}/utxo`,
-      {
-        json: true
-      }
-    )
-      .then(response => {
-        return callback(response[0]);
-      })
-      .catch(error => {
-        return callback(error);
-      });
-  } else {
-    return callback("no api specified");
-  }
-}
-
 // NON CLASS FUNCTIONS
 
 /**
- * retrieve data
- * @param type {string} Either fund address, or queue addresses
+ * Reads data from mongoDB, either fund or queue address/s. If there is no data, create the new wallet
+ * @param type {string} Either fund address, or queue addresses.
+ * @return {Promise< newWalletFile | createFundAddr >}
  */
 const readFromMongodb = type => {
   return new Promise((resolve, reject) => {
@@ -273,6 +248,14 @@ const readFromMongodb = type => {
   });
 };
 
+/**
+ * Creates a new document containing stringed version of Object, or updates the doc if it exists
+ * @param type {string} either fund or queue address
+ * @param dataToInsert {Object} - fund or queue address to add to database.
+ * @return {Promise< resolve | reject >}
+ *
+ * // TODO: Optimise writeToMongoDb, tons of repeated code. Needs a helper function.
+ */
 const writeToMongoDb = (type, dataToInsert) => {
   // TODO: Refactor, remove repeated code
   return new Promise((resolve, reject) => {
@@ -330,14 +313,11 @@ const writeToMongoDb = (type, dataToInsert) => {
   });
 };
 
-function formatted(obj, template = "default") {
-  return "publicKey" in obj && "privateKey" in obj;
-}
-
 /**
  * Makes a new wallet with `size` as amount of address
  * @param {int=} size - amount of addresses to make
  */
+
 function newWalletFile(size = 1000) {
   const wallet = [];
   for (let i = 0; i < size; i++) {
@@ -357,10 +337,10 @@ function newWalletFile(size = 1000) {
 
 /**
  * Creates a new address, which all further addresses will be funded from
- * @param {string=} filename - filename to write fundAddress data structure too
+ * @return {{privateKey: PrivateKey, publicKey: string}} new private/public key pair for fund address
  */
 
-function createFundAddr(filename = "secrets/fundAddress.json") {
+function createFundAddr() {
   const privateKey = new Dashjs.PrivateKey(Dashjs.Networks.testnet);
   return {
     privateKey: privateKey,
@@ -369,50 +349,5 @@ function createFundAddr(filename = "secrets/fundAddress.json") {
       .toString()
   };
 }
-
-/**
- * helper function to read in file from correct format that the saved wallet files are saved in
- * @param {String} fileName - filename to read in
- * @return {Object}         - Returns save from queue file
- */
-
-// function readAddr(fileName) {
-//   return JSON.parse(fs.readFileSync(fileName, "utf8"));
-// }
-
-/**
- * helper function to write out wallets to file
- * @param {{privateKey: PrivateKey, publicKey: string}} data - data to write out
- * @param {String} filename - filename to write too
- * @param {Boolean} overwrite - flag which either tells function to overwrite an existing file of the same nme
- */
-// function writeAddr(data, filename, overwrite = false) {
-//   if (data.hasOwnProperty("queue")) {
-//     let dataToFile = data.queue;
-//     if (overwrite) {
-//       fs.writeFileSync(
-//         "secrets/" + filename,
-//         JSON.stringify(dataToFile, null, 2),
-//         "utf-8",
-//         function(err) {
-//           if (err) throw err;
-//         }
-//       );
-//     } else {
-//       filename = filename.split(".");
-//       fs.writeFileSync(
-//         `secrets/${filename[0]}.new.${filename[1]}`,
-//         JSON.stringify(dataToFile, null, 2),
-//         {
-//           options: "utf-8"
-//         },
-//         function(err) {
-//           if (err) throw err;
-//         }
-//       );
-//     }
-//   }
-//   return "Wrong data structure to write out using this function";
-// }
 
 module.exports = wallet;

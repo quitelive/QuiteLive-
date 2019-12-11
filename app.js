@@ -26,7 +26,18 @@ if (process.env.NODE_ENV !== "production") {
 const Express = require("express");
 const WebSocket = require("ws");
 const chalk = require("chalk");
-const Mongoose = require("mongoose");
+
+// clear redis db at startup
+const Redis = require("redis");
+
+const client = Redis.createClient(process.env.REDIS_URL); // creates a new client
+
+client.on("connect", function() {
+  client.flushall("ASYNC", _ => {
+    console.log(chalk.white.bold("[Quite Live] flushed redis"));
+    client.quit();
+  });
+});
 
 const api = require("./routes/api");
 const messageActor = require("./src/messageActor");
@@ -41,12 +52,6 @@ const server = app.listen(PORT, () => {
     chalk.white.bold("[Quite Live] Server running on port: " + chalk.red(`${PORT}`))
   );
   console.log(chalk.white.bold(`[Quite Live] Exit app with SIGTERM (^C)`));
-});
-
-process.on("SIGTERM", () => {
-  server.close(() => {
-    console.log("Process terminated");
-  });
 });
 
 // Exit on SIGTERM - aka (^c)
@@ -104,3 +109,12 @@ messages.dispatchMessages();
 app.get("/stream", (req, res) => {
   res.sendFile(__dirname + "/public/htmls/stream.html");
 });
+
+process.on("SIGTERM", () => {
+  console.log("here");
+  server.close(() => {
+    console.log("Process terminated");
+  });
+});
+
+//TODO: clear redis on startup

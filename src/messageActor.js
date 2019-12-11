@@ -20,10 +20,7 @@
 
 const Bull = require("bull");
 const Chalk = require("chalk");
-const Hasha = require("hasha");
-// const util = require("util");
 
-const Queue = require("./Queue");
 const parseMessage = require("./messageParser");
 const clients = require("./Clients");
 

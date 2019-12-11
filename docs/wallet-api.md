@@ -3,7 +3,11 @@
 <dl>
 <dt><a href="#AddressQueue">AddressQueue</a></dt>
 <dd><p>Queue for each address. We need this as each address needs time for the tx to confirm
-Therefor we need a queue to keep track of each address</p>
+Therefor we need a queue to keep track of each address.</p>
+<p>// TODO: Make Wallet&#39;s AddressQueue more efficient
+   This would be an easyish task as right now we are shuffling each address around a
+   huge array of objects. Instead, we could use an index counter and just use
+   indexCounter % NumberOfAddresses to keep track of the current address!</p>
 </dd>
 <dt><a href="#wallet">wallet</a></dt>
 <dd></dd>
@@ -12,21 +16,17 @@ Therefor we need a queue to keep track of each address</p>
 ## Functions
 
 <dl>
-<dt><a href="#getUTXO">getUTXO(address, api)</a> ⇒ <code>Object</code></dt>
-<dd><p>BROKEN oh promises...
-BIG yuck</p>
+<dt><a href="#readFromMongodb">readFromMongodb(type)</a> ⇒ <code>Promise.&lt;(newWalletFile|createFundAddr)&gt;</code></dt>
+<dd><p>Reads data from mongoDB, either fund or queue address/s. If there is no data, create the new wallet</p>
+</dd>
+<dt><a href="#writeToMongoDb">writeToMongoDb(type, dataToInsert)</a> ⇒ <code>Promise.&lt;(resolve|reject)&gt;</code></dt>
+<dd><p>Creates a new document containing stringed version of Object, or updates the doc if it exists</p>
 </dd>
 <dt><a href="#newWalletFile">newWalletFile([size])</a></dt>
 <dd><p>Makes a new wallet with <code>size</code> as amount of address</p>
 </dd>
-<dt><a href="#createFundAddr">createFundAddr([filename])</a></dt>
+<dt><a href="#createFundAddr">createFundAddr()</a> ⇒ <code>Object</code></dt>
 <dd><p>Creates a new address, which all further addresses will be funded from</p>
-</dd>
-<dt><a href="#readAddr">readAddr(fileName)</a> ⇒ <code>Object</code></dt>
-<dd><p>helper function to read in file from correct format that the saved wallet files are saved in</p>
-</dd>
-<dt><a href="#writeAddr">writeAddr(data, filename, overwrite)</a></dt>
-<dd><p>helper function to write out wallets to file</p>
 </dd>
 </dl>
 
@@ -34,7 +34,12 @@ BIG yuck</p>
 
 ## AddressQueue
 Queue for each address. We need this as each address needs time for the tx to confirm
-Therefor we need a queue to keep track of each address
+Therefor we need a queue to keep track of each address.
+
+// TODO: Make Wallet's AddressQueue more efficient
+   This would be an easyish task as right now we are shuffling each address around a
+   huge array of objects. Instead, we could use an index counter and just use
+   indexCounter % NumberOfAddresses to keep track of the current address!
 
 **Kind**: global class  
 
@@ -49,8 +54,8 @@ Therefor we need a queue to keep track of each address
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| addresses | <code>string</code> |  | json file to parse, adds address and info to queue |
-| network | <code>string</code> | <code>&quot;mainet&quot;</code> | defaults to "mainnet", sets what type of network we are using                           either "mainnet" or "testnet" |
+| addresses | <code>object</code> |  | List of dicts, holding addresses with priv/pub keys. Comes from MongoDb. |
+| network | <code>string</code> | <code>&quot;mainet&quot;</code> | Defaults to "mainnet", sets what type of network we are using                           either "mainnet" or "testnet". |
 
 <a name="AddressQueue+nextAddr"></a>
 
@@ -62,32 +67,35 @@ LIFO queue interface for getting next address
 <a name="AddressQueue+getSize"></a>
 
 ### addressQueue.getSize() ⇒ <code>number</code>
+Gets number of addresses.
+
 **Kind**: instance method of [<code>AddressQueue</code>](#AddressQueue)  
-**Returns**: <code>number</code> - Amount of address in the queue  
+**Returns**: <code>number</code> - Amount of address in the queue.  
 <a name="wallet"></a>
 
 ## wallet
 **Kind**: global class  
 
 * [wallet](#wallet)
-    * [new wallet([walletFile], [fundAddressFile], [numberOfAddresses])](#new_wallet_new)
+    * [new wallet()](#new_wallet_new)
+    * [.load()](#wallet+load) ⇒ <code>Promise.&lt;null&gt;</code>
     * [.getQueueSize()](#wallet+getQueueSize) ⇒ <code>number</code>
-    * [.send(callback, amount)](#wallet+send) ⇒ <code>string</code>
+    * [.send(amount)](#wallet+send)
     * [.closeWallet()](#wallet+closeWallet)
     * [.fundAddresses([amount])](#wallet+fundAddresses)
 
 <a name="new_wallet_new"></a>
 
-### new wallet([walletFile], [fundAddressFile], [numberOfAddresses])
+### new wallet()
 Instantiate a "wallet" of sorts
 
+<a name="wallet+load"></a>
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [walletFile] | <code>string</code> | <code>&quot;secrets/wallet.json&quot;</code> | Relative file path to json wallet file |
-| [fundAddressFile] | <code>string</code> | <code>&quot;secrets/fundAddress.json&quot;</code> | relative file path to json wallet file |
-| [numberOfAddresses] | <code>number</code> |  | number of new address to generate |
+### wallet.load() ⇒ <code>Promise.&lt;null&gt;</code>
+Helper function that loads both FundAddress and AddressQueue addresses from mongoDB
 
+**Kind**: instance method of [<code>wallet</code>](#wallet)  
+**Returns**: <code>Promise.&lt;null&gt;</code> - resolves when it loads both objects  
 <a name="wallet+getQueueSize"></a>
 
 ### wallet.getQueueSize() ⇒ <code>number</code>
@@ -95,20 +103,20 @@ Instantiate a "wallet" of sorts
 **Returns**: <code>number</code> - Amount of address in the wallet queue  
 <a name="wallet+send"></a>
 
-### wallet.send(callback, amount) ⇒ <code>string</code>
+### wallet.send(amount)
 Sends a tx, returns txid
 
 **Kind**: instance method of [<code>wallet</code>](#wallet)  
-**Returns**: <code>string</code> - txid of transaction sent  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
-| callback | <code>function</code> |  | function to call that tries to return txid |
-| amount | <code>number</code> | <code>1</code> | amount to send. Defaults to 1 duff |
+| amount | <code>number</code> | <code>1</code> | amount to send. Defaults to 1 duff/satoshi. |
 
 <a name="wallet+closeWallet"></a>
 
 ### wallet.closeWallet()
+Closes wallet to preserve queue order. Gives time for addresses to confirm there transactions.
+
 **Kind**: instance method of [<code>wallet</code>](#wallet)  
 <a name="wallet+fundAddresses"></a>
 
@@ -121,19 +129,29 @@ Fund all address in wallet file, with dash in `this.fundAddress`
 | --- | --- | --- | --- |
 | [amount] | <code>int</code> | <code>100100</code> | amount of dash to fund to each address. Defaults to 100100 duffs, which                              allows 100 transactions: 0.001001 = (0.00001 + 0.00000001) × 100 |
 
-<a name="getUTXO"></a>
+<a name="readFromMongodb"></a>
 
-## getUTXO(address, api) ⇒ <code>Object</code>
-BROKEN oh promises...
-BIG yuck
+## readFromMongodb(type) ⇒ <code>Promise.&lt;(newWalletFile\|createFundAddr)&gt;</code>
+Reads data from mongoDB, either fund or queue address/s. If there is no data, create the new wallet
 
 **Kind**: global function  
-**Returns**: <code>Object</code> - - Dict with UTXO data  
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| address | <code>String</code> |  | address to get UTXO from |
-| api | <code>String</code> | <code>default</code> | which api to fetch data from                                * default is http://testnet-insight.dashevo.org |
+| Param | Type | Description |
+| --- | --- | --- |
+| type | <code>string</code> | Either fund address, or queue addresses. |
+
+<a name="writeToMongoDb"></a>
+
+## writeToMongoDb(type, dataToInsert) ⇒ <code>Promise.&lt;(resolve\|reject)&gt;</code>
+Creates a new document containing stringed version of Object, or updates the doc if it exists
+
+**Kind**: global function  
+**Returns**: <code>Promise.&lt;(resolve\|reject)&gt;</code> - // TODO: Optimise writeToMongoDb, tons of repeated code. Needs a helper function.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| type | <code>string</code> | either fund or queue address |
+| dataToInsert | <code>Object</code> | fund or queue address to add to database. |
 
 <a name="newWalletFile"></a>
 
@@ -148,37 +166,8 @@ Makes a new wallet with `size` as amount of address
 
 <a name="createFundAddr"></a>
 
-## createFundAddr([filename])
+## createFundAddr() ⇒ <code>Object</code>
 Creates a new address, which all further addresses will be funded from
 
 **Kind**: global function  
-
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [filename] | <code>string</code> | <code>&quot;secrets/fundAddress.json&quot;</code> | filename to write fundAddress data structure too |
-
-<a name="readAddr"></a>
-
-## readAddr(fileName) ⇒ <code>Object</code>
-helper function to read in file from correct format that the saved wallet files are saved in
-
-**Kind**: global function  
-**Returns**: <code>Object</code> - - Returns save from queue file  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| fileName | <code>String</code> | filename to read in |
-
-<a name="writeAddr"></a>
-
-## writeAddr(data, filename, overwrite)
-helper function to write out wallets to file
-
-**Kind**: global function  
-
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| data | <code>String</code> |  | data to write out |
-| filename | <code>String</code> |  | filename to write too |
-| overwrite | <code>Boolean</code> | <code>false</code> | flag which either tells function to overwrite an existing file of the same nme |
-
+**Returns**: <code>Object</code> - new private/public key pair for fund address  
